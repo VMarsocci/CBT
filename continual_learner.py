@@ -17,12 +17,9 @@ class ContinualLearner(nn.Module, metaclass=abc.ABCMeta):
 
         # -EWC:
         self.ewc_lambda = 0     #-> hyperparam: how strong to weigh EWC-loss ("regularisation strength")
-        # self.gamma = 1.         #-> hyperparam (online EWC): decay-term for old tasks' contribution to quadratic term
-        # self.online = False      #-> "online" (=single quadratic term) or "offline" (=quadratic term per task) EWC
-        self.fisher_n = None    #-> sample size for estimating FI-matrix (if "None", full pass over dataset)
-        # self.emp_FI = False     #-> if True, use provided labels to calculate FI ("empirical FI"); else predicted labels
+        self.fisher_n = None    #-> number of batches for estimating FI-matrix (if "None", full pass over dataset)
+        self.batch_size = 1     #-> batch size to compute FI-matrix
         self.EWC_task_count = 0 #-> keeps track of number of quadratic loss terms (for "offline EWC")
-        # Prepare <dict> to store estimated Fisher Information matrix
         self.est_fisher_info = {}
         self.prev_task_info = {}
 
@@ -56,7 +53,7 @@ class ContinualLearner(nn.Module, metaclass=abc.ABCMeta):
         self.eval()
 
         # Create data-loader to give batches of size 1
-        data_loader = utils.get_data_loader(dataset, batch_size=1, cuda=self._is_on_cuda(), collate_fn=collate_fn)
+        data_loader = utils.get_data_loader(dataset, batch_size=self.batch_size, cuda=self._is_on_cuda(), collate_fn=collate_fn)
 
         # Estimate the FI-matrix for [self.fisher_n] batches of size 1
         for index,((y1, y2), _) in enumerate(data_loader):
@@ -97,16 +94,11 @@ class ContinualLearner(nn.Module, metaclass=abc.ABCMeta):
         '''Calculate EWC-loss.'''
         if self.EWC_task_count>0:
             losses = []
-            # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
-            # for task in range(1, self.EWC_task_count+1):
             for n, p in self.named_parameters():
                 if p.requires_grad:
-                    # print(n, p)
                     # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
                     mean = torch.from_numpy(self.prev_task[n]).float().to(self._device())
                     fisher_ = torch.from_numpy(self.fisher[n]).float().to(self._device())
-                    # If "online EWC", apply decay-term to the running sum of the Fisher Information matrices
-                    # fisher_ = self.gamma*fisher_ if self.online else fisher_
                     # Calculate EWC-loss
                     losses.append((fisher_ * (p-mean)**2).sum())
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
