@@ -264,6 +264,7 @@ class BarlowTwins(ContinualLearner):
         self.args = args
         self.backbone = torchvision.models.resnet50(zero_init_residual=True)
         self.backbone.fc = nn.Identity()
+        # self.b_s = self.args.batch_size
 
         # projector
         sizes = [2048] + list(map(int, args.projector.split('-')))
