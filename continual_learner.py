@@ -14,7 +14,7 @@ class ContinualLearner(nn.Module, metaclass=abc.ABCMeta):
         # -EWC:
         self.ewc_lambda = 0     #-> hyperparam: how strong to weigh EWC-loss ("regularisation strength")
         self.fisher_n = None    #-> number of batches for estimating FI-matrix (if "None", full pass over dataset)
-        self.batch_size = 1     #-> batch size to compute FI-matrix
+        self.b_s = 1     #-> batch size to compute FI-matrix
         self.EWC_task_count = 0 #-> keeps track of number of quadratic loss terms (for "offline EWC")
         self.est_fisher_info = {}
         self.prev_task_info = {}
@@ -49,7 +49,7 @@ class ContinualLearner(nn.Module, metaclass=abc.ABCMeta):
         self.eval()
 
         # Create data-loader to give batches of size 1
-        data_loader = utils.get_data_loader(dataset, batch_size=self.batch_size, cuda=self._is_on_cuda(), collate_fn=collate_fn)
+        data_loader = utils.get_data_loader(dataset, batch_size=self.b_s, cuda=self._is_on_cuda(), collate_fn=collate_fn)
 
         # Estimate the FI-matrix for [self.fisher_n] batches of size 1
         for index,((y1, y2), _) in enumerate(data_loader):
